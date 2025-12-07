@@ -22,8 +22,9 @@ type rows struct {
 	columns []string
 	pstmt   uintptr
 
-	doStep bool
-	empty  bool
+	doStep    bool
+	empty     bool
+	reuseStmt bool // If true, Close() resets instead of finalizing
 }
 
 func newRows(c *conn, pstmt uintptr, allocs []uintptr, empty bool) (r *rows, err error) {
@@ -57,6 +58,15 @@ func (r *rows) Close() (err error) {
 		r.c.free(v)
 	}
 	r.allocs = nil
+
+	if r.reuseStmt {
+		// Reset the statement for reuse instead of finalizing it
+		if e := r.c.reset(r.pstmt); e != nil {
+			return e
+		}
+		return r.c.clearBindings(r.pstmt)
+	}
+
 	return r.c.finalize(r.pstmt)
 }
 
@@ -259,4 +269,14 @@ func (r *rows) ColumnTypeScanType(index int) reflect.Type {
 	default:
 		return reflect.TypeOf("")
 	}
+}
+
+// C documentation
+//
+//	int sqlite3_reset(sqlite3_stmt *pStmt);
+func (c *conn) reset(pstmt uintptr) error {
+	if rc := sqlite3.Xsqlite3_reset(c.tls, pstmt); rc != sqlite3.SQLITE_OK {
+		return c.errstr(rc)
+	}
+	return nil
 }

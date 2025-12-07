@@ -15,8 +15,9 @@ import (
 )
 
 type stmt struct {
-	c    *conn
-	psql uintptr
+	c     *conn
+	psql  uintptr
+	pstmt uintptr // The cached SQLite statement handle
 }
 
 func newStmt(c *conn, sql string) (*stmt, error) {
@@ -24,18 +25,54 @@ func newStmt(c *conn, sql string) (*stmt, error) {
 	if err != nil {
 		return nil, err
 	}
-	stm := stmt{c: c, psql: p}
+	s := &stmt{c: c, psql: p}
 
-	return &stm, nil
+	// Attempt to prepare the statement immediately
+	// We make a copy of the pointer because prepareV2 advances it
+	psql := p
+	pstmt, err := c.prepareV2(&psql)
+	if err != nil {
+		c.free(p)
+		return nil, err
+	}
+
+	// Check if there is trailing SQL (indicating a script/multi-statement)
+	// If *psql (the tail) is 0, we consumed the whole string.
+	hasTail := *(*byte)(unsafe.Pointer(psql)) != 0
+	if pstmt != 0 && !hasTail {
+		// Optimization: Single statement. Cache it.
+		s.pstmt = pstmt
+		return s, nil
+	}
+
+	// It is either a script (hasTail) or a comment-only string (pstmt==0).
+	// For scripts: Finalize now. We will re-parse iteratively in Exec/Query
+	// to handle the multiple statements correctly using the existing loop logic.
+	if pstmt != 0 {
+		if err := c.finalize(pstmt); err != nil {
+			c.free(p)
+			return nil, err
+		}
+	}
+
+	return s, nil
 }
 
 // Close closes the statement.
 //
 // As of Go 1.1, a Stmt will not be closed if it's in use by any queries.
 func (s *stmt) Close() (err error) {
-	s.c.free(s.psql)
-	s.psql = 0
-	return nil
+	if s.pstmt != 0 {
+		if e := s.c.finalize(s.pstmt); e != nil {
+			err = e
+		}
+		s.pstmt = 0
+	}
+	if s.psql != 0 {
+		s.c.free(s.psql)
+		s.psql = 0
+	}
+	return err
 }
 
 // Exec executes a query that doesn't return rows, such as an INSERT or UPDATE.
@@ -85,6 +122,58 @@ func (s *stmt) exec(ctx context.Context, args []driver.NamedValue) (r driver.Res
 		}
 	}()
 
+	// OPTIMIZED PATH: Single Cached Statement
+	if s.pstmt != 0 {
+		err = func() error {
+			// Bind
+			n, err := s.c.bindParameterCount(s.pstmt)
+			if err != nil {
+				return err
+			}
+			if n != 0 {
+				allocs, err := s.c.bind(s.pstmt, n, args)
+				if err != nil {
+					return err
+				}
+				// Free allocations after step
+				if len(allocs) != 0 {
+					defer func() {
+						for _, v := range allocs {
+							s.c.free(v)
+						}
+					}()
+				}
+			}
+
+			// Step
+			rc, err := s.c.step(s.pstmt)
+			if err != nil {
+				return err
+			}
+
+			// Handle Result
+			switch rc & 0xff {
+			case sqlite3.SQLITE_DONE, sqlite3.SQLITE_ROW:
+				r, err = newResult(s.c)
+			default:
+				return s.c.errstr(int32(rc))
+			}
+			return nil
+		}()
+
+		// RESET (Crucial: Do not finalize)
+		// We must reset the VM to allow reuse.
+		// We also clear bindings to prevent leaking memory or state to next call.
+		if resetErr := s.c.reset(s.pstmt); resetErr != nil && err == nil {
+			err = resetErr
+		}
+		if clearErr := s.c.clearBindings(s.pstmt); clearErr != nil && err == nil {
+			err = clearErr
+		}
+		return r, err
+	}
+
+	// FALLBACK PATH: Multi-statement script
 	for psql := s.psql; *(*byte)(unsafe.Pointer(psql)) != 0 && atomic.LoadInt32(&done) == 0; {
 		if pstmt, err = s.c.prepareV2(&psql); err != nil {
 			return nil, err
@@ -206,6 +295,72 @@ func (s *stmt) query(ctx context.Context, args []driver.NamedValue) (r driver.Ro
 
 	}()
 
+	// OPTIMIZED PATH: Single Cached Statement
+	if s.pstmt != 0 {
+		// Bind
+		n, err := s.c.bindParameterCount(s.pstmt)
+		if err != nil {
+			return nil, err
+		}
+		if n != 0 {
+			if allocs, err = s.c.bind(s.pstmt, n, args); err != nil {
+				return nil, err
+			}
+		}
+
+		// Step
+		rc, err := s.c.step(s.pstmt)
+		if err != nil {
+			// On error, we must free allocs manually because 'newRows' won't take ownership
+			for _, v := range allocs {
+				s.c.free(v)
+			}
+			s.c.reset(s.pstmt)
+			s.c.clearBindings(s.pstmt)
+			return nil, err
+		}
+
+		// Handle Result
+		switch rc & 0xff {
+		case sqlite3.SQLITE_ROW:
+			// Pass reuseStmt=true
+			if r, err = newRows(s.c, s.pstmt, allocs, false); err != nil {
+				s.c.reset(s.pstmt)
+				s.c.clearBindings(s.pstmt)
+				return nil, err
+			}
+			r.(*rows).reuseStmt = true
+			return r, nil
+
+		case sqlite3.SQLITE_DONE:
+			// No rows. Reset immediately.
+			// We still return a rows object (empty), but we can reset the stmt now
+			// because the empty rows object won't call step() again.
+			// However, standard newRows behavior expects a valid stmt to get columns.
+			// Let's rely on newRows to read columns, then it returns.
+
+			// Actually, if we pass reuseStmt=true to an empty set,
+			// rows.Close() will eventually reset it.
+			if r, err = newRows(s.c, s.pstmt, allocs, true); err != nil {
+				s.c.reset(s.pstmt)
+				s.c.clearBindings(s.pstmt)
+				return nil, err
+			}
+			r.(*rows).reuseStmt = true
+			return r, nil
+
+		default:
+			// Error case
+			for _, v := range allocs {
+				s.c.free(v)
+			}
+			s.c.reset(s.pstmt)
+			s.c.clearBindings(s.pstmt)
+			return nil, s.c.errstr(int32(rc))
+		}
+	}
+
+	// FALLBACK PATH: Multi-statement script
 	for psql := s.psql; *(*byte)(unsafe.Pointer(psql)) != 0 && atomic.LoadInt32(&done) == 0; {
 		if pstmt, err = s.c.prepareV2(&psql); err != nil {
 			return nil, err
@@ -304,4 +459,14 @@ func (s *stmt) QueryContext(ctx context.Context, args []driver.NamedValue) (dr d
 		}()
 	}
 	return s.query(ctx, args)
+}
+
+// C documentation
+//
+//	int sqlite3_clear_bindings(sqlite3_stmt*);
+func (c *conn) clearBindings(pstmt uintptr) error {
+	if rc := sqlite3.Xsqlite3_clear_bindings(c.tls, pstmt); rc != sqlite3.SQLITE_OK {
+		return c.errstr(rc)
+	}
+	return nil
 }

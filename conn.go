@@ -520,6 +520,8 @@ func (c *conn) prepareV2(zSQL *uintptr) (pstmt uintptr, err error) {
 	}
 
 	for {
+		// https://gitlab.com/cznic/sqlite/-/issues/236
+		// trc("Xsqlite3_prepare_v2(`%s`)", libc.GoString(*zSQL))
 		switch rc := sqlite3.Xsqlite3_prepare_v2(c.tls, c.db, *zSQL, -1, ppstmt, pptail); rc {
 		case sqlite3.SQLITE_OK:
 			*zSQL = *(*uintptr)(unsafe.Pointer(pptail))
@@ -844,18 +846,42 @@ func (c *conn) Query(query string, args []driver.Value) (dr driver.Rows, err err
 }
 
 func (c *conn) query(ctx context.Context, query string, args []driver.NamedValue) (r driver.Rows, err error) {
-	s, err := c.prepare(ctx, query)
+	// Use newStmt directly. c.prepare wraps this, but we need the concrete *stmt type
+	// to manipulate the handle ownership below.
+	s, err := newStmt(c, query)
 	if err != nil {
 		return nil, err
 	}
 
-	defer func() {
-		if err2 := s.Close(); err2 != nil && err == nil {
-			err = err2
-		}
-	}()
+	r, err = s.query(ctx, args)
+	if err != nil {
+		s.Close()
+		return nil, err
+	}
 
-	return s.(*stmt).query(ctx, args)
+	// Fix for TestIssue118 / One-Shot Query Crash:
+	// If the statement was cached (optimized path in newStmt), s.pstmt is valid.
+	// s.query() sets r.reuseStmt = true by default for cached statements.
+	//
+	// However, since this is a transient statement created just for this query (db.Query),
+	// s.Close() will be called immediately below. We must transfer ownership of the
+	// sqlite statement handle to the rows object so it isn't finalized yet.
+	if s.pstmt != 0 {
+		// Steal the handle from the statement so s.Close() doesn't finalize it.
+		s.pstmt = 0
+
+		// Instruct rows to finalize the statement when done, rather than resetting it.
+		r.(*rows).reuseStmt = false
+	}
+
+	// s.Close() now only frees the C-string allocation (psql), skipping the pstmt finalize
+	// because we set s.pstmt to 0.
+	if err := s.Close(); err != nil {
+		r.Close()
+		return nil, err
+	}
+
+	return r, nil
 }
 
 // Serialize returns a serialization of the main database. For an ordinary on-disk
