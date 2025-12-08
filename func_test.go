@@ -914,7 +914,7 @@ func TestRegisteredFunctions(t *testing.T) {
 				0,
 				func(*FunctionContext, []driver.Value) (driver.Value, error) {
 					<-ctx.Done()
-					return int64(42), nil
+					return nil, ctx.Err()
 				},
 			)
 
