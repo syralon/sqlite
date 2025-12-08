@@ -181,7 +181,7 @@ type IndexInfo struct {
 	// integer (int32). Implementations must ensure IdxNum fits within the
 	// int32 range; values outside of int32 will cause an error in the driver
 	// to avoid silent truncation.
-	IdxNum int
+	IdxNum int64
 	IdxStr string
 	// IdxFlags provides extra information about the chosen plan.
 	// Set to IndexScanUnique to indicate the plan visits at most one row.
