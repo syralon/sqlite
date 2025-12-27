@@ -1010,7 +1010,7 @@ func TestIssue20(t *testing.T) {
 	// 40000 PASS
 	// 30000 PASS
 	// 25000 PASS
-	db, err := sql.Open("sqlite", filepath.Join(tempDir, "foo.db")+"?_pragma=busy_timeout%3d50000")
+	db, err := sql.Open("sqlite", filepath.Join(tempDir, "foo.db")+"?_pragma=busy_timeout%3d50000&_pragma=journal_mode=WAL")
 	if err != nil {
 		t.Fatalf("foo.db open fail: %v", err)
 	}
