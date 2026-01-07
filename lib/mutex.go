@@ -291,7 +291,7 @@ func mutexLeave(tls *libc.TLS, m uintptr) {
 
 	// Recursive mutex: Decrement count
 	(*mutex)(unsafe.Pointer(m)).cnt--
-	
+
 	// If count reaches zero, we are fully releasing the mutex.
 	if (*mutex)(unsafe.Pointer(m)).cnt == 0 {
 		atomic.StoreInt32(&(*mutex)(unsafe.Pointer(m)).id, 0)
@@ -329,7 +329,7 @@ func mutexHeld(tls *libc.TLS, m uintptr) int32 {
 		return 1
 	}
 
-	// atomic.Load is required because we might be checking a mutex 
+	// atomic.Load is required because we might be checking a mutex
 	// that we do not own (and thus another thread might be writing to).
 	return libc.Bool32(atomic.LoadInt32(&(*mutex)(unsafe.Pointer(m)).id) == tls.ID)
 }

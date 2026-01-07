@@ -3538,3 +3538,73 @@ func TestIssue209(t *testing.T) {
 		doTest([]byte{})
 	})
 }
+
+func TestIsReadOnly(t *testing.T) {
+	const nm = "db.db"
+	dir := t.TempDir()
+	dbPath := filepath.Join(dir, nm)
+
+	// Create the database and verify it is NOT read-only
+	db, err := sql.Open("sqlite", fmt.Sprintf("file:%s", dbPath))
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Create table to ensure the file actually exists
+	if _, err := db.Exec("create table t(s);"); err != nil {
+		t.Fatal(err)
+	}
+
+	c, err := db.Conn(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := c.Raw(func(c any) error {
+		// Use "main" for the primary database schema
+		v, err := c.(interface{ IsReadOnly(string) (bool, error) }).IsReadOnly("main")
+		if err != nil {
+			return err
+		}
+		if v {
+			return fmt.Errorf("expected IsReadOnly('main') to be false, got true")
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	c.Close()
+	db.Close()
+
+	// Make the file read-only on the OS level
+	if err := os.Chmod(dbPath, 0400); err != nil {
+		t.Fatal(err)
+	}
+
+	// Re-open and verify it IS read-only
+	// Note: We use mode=ro to force SQLite to respect the read-only nature explicitly,
+	// though purely filesystem permissions usually suffice for SQLite to detect it.
+	dbRO, err := sql.Open("sqlite", fmt.Sprintf("file:%s?mode=ro", dbPath))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer dbRO.Close()
+
+	cRO, err := dbRO.Conn(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer cRO.Close()
+
+	if err := cRO.Raw(func(c any) error {
+		v, err := c.(interface{ IsReadOnly(string) (bool, error) }).IsReadOnly("main")
+		if err != nil {
+			return err
+		}
+		if !v {
+			return fmt.Errorf("expected IsReadOnly('main') to be true, got false")
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+}
