@@ -39,6 +39,8 @@ func main() {
 		{"linux", "ppc64le"},
 		{"linux", "riscv64"},
 		{"linux", "s390x"},
+		{"openbsd", "amd64"},
+		{"openbsd", "arm64"},
 		{"windows", "386"},
 		{"windows", "amd64"},
 	} {
