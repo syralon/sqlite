@@ -239,6 +239,112 @@ func (t *opsTableX) Open() (vtab.Cursor, error) { return &dummyCursor{}, nil }
 func (t *opsTableX) Disconnect() error          { return nil }
 func (t *opsTableX) Destroy() error             { return nil }
 
+// matchModuleX exercises MATCH constraint support.
+type matchModuleX struct{}
+type matchTableX struct{}
+type matchCursorX struct {
+	rows []struct {
+		rowid int64
+		val   string
+	}
+	pos int
+}
+
+func (m *matchModuleX) Create(ctx vtab.Context, args []string) (vtab.Table, error) {
+	if err := ctx.EnableConstraintSupport(); err != nil {
+		return nil, err
+	}
+	if err := ctx.Declare("CREATE TABLE " + args[2] + "(val)"); err != nil {
+		return nil, err
+	}
+	return &matchTableX{}, nil
+}
+
+func (m *matchModuleX) Connect(ctx vtab.Context, args []string) (vtab.Table, error) {
+	if err := ctx.EnableConstraintSupport(); err != nil {
+		return nil, err
+	}
+	if err := ctx.Declare("CREATE TABLE " + args[2] + "(val)"); err != nil {
+		return nil, err
+	}
+	return &matchTableX{}, nil
+}
+
+func (t *matchTableX) BestIndex(info *vtab.IndexInfo) error {
+	for i := range info.Constraints {
+		c := &info.Constraints[i]
+		if c.Usable && c.Op == vtab.OpMATCH && c.Column == 0 {
+			c.ArgIndex = 0
+			c.Omit = true
+			info.IdxNum = 1
+			return nil
+		}
+	}
+	info.IdxNum = 0
+	return nil
+}
+
+func (t *matchTableX) Open() (vtab.Cursor, error) { return &matchCursorX{}, nil }
+func (t *matchTableX) Disconnect() error          { return nil }
+func (t *matchTableX) Destroy() error             { return nil }
+
+func (c *matchCursorX) Filter(idxNum int, idxStr string, vals []vtab.Value) error {
+	_ = idxStr
+	all := []string{"alpha", "alpine", "beta"}
+	c.rows = c.rows[:0]
+	c.pos = 0
+	if idxNum != 1 || len(vals) == 0 {
+		return nil
+	}
+	query, ok := vals[0].(string)
+	if !ok {
+		return nil
+	}
+	var rowid int64
+	for _, v := range all {
+		rowid++
+		if strings.Contains(v, query) {
+			c.rows = append(c.rows, struct {
+				rowid int64
+				val   string
+			}{rowid: rowid, val: v})
+		}
+	}
+	return nil
+}
+
+func (c *matchCursorX) Next() error {
+	if c.pos < len(c.rows) {
+		c.pos++
+	}
+	return nil
+}
+
+func (c *matchCursorX) Eof() bool { return c.pos >= len(c.rows) }
+
+func (c *matchCursorX) Column(col int) (vtab.Value, error) {
+	if c.pos < 0 || c.pos >= len(c.rows) {
+		return nil, nil
+	}
+	if col == 0 {
+		return c.rows[c.pos].val, nil
+	}
+	return nil, nil
+}
+
+func (c *matchCursorX) Rowid() (int64, error) {
+	if c.pos < 0 || c.pos >= len(c.rows) {
+		return 0, nil
+	}
+	return c.rows[c.pos].rowid, nil
+}
+
+func (c *matchCursorX) Close() error {
+	c.rows = nil
+	c.pos = 0
+	return nil
+}
+
 // TestDummyModuleVtab verifies that a simple vtab module implemented in Go
 // can be registered and queried through the modernc.org/sqlite driver.
 func TestDummyModuleVtab(t *testing.T) {
@@ -524,6 +630,42 @@ func TestVtabOmitConstraintEffect(t *testing.T) {
 	rows.Close()
 	if len(got) != 2 {
 		t.Fatalf("omit=true expected 2 rows (no re-check), got %d %v", len(got), got)
+	}
+}
+
+// TestVtabMatchConstraint ensures MATCH constraints work when enabled.
+func TestVtabMatchConstraint(t *testing.T) {
+	if err := vtab.RegisterModule(nil, "matchx", &matchModuleX{}); err != nil {
+		t.Fatalf("vtab.RegisterModule(matchx) failed: %v", err)
+	}
+	db, err := sql.Open(driverName, ":memory:")
+	if err != nil {
+		t.Fatalf("sql.Open failed: %v", err)
+	}
+	defer db.Close()
+	if _, err := db.Exec(`CREATE VIRTUAL TABLE mt USING matchx(val)`); err != nil {
+		t.Fatalf("CREATE VIRTUAL TABLE mt USING matchx failed: %v", err)
+	}
+
+	rows, err := db.Query(`SELECT val FROM mt WHERE val MATCH 'al' ORDER BY val`)
+	if err != nil {
+		t.Fatalf("SELECT from mt failed: %v", err)
+	}
+	defer rows.Close()
+
+	var got []string
+	for rows.Next() {
+		var v string
+		if err := rows.Scan(&v); err != nil {
+			t.Fatalf("scan failed: %v", err)
+		}
+		got = append(got, v)
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatalf("rows.Err: %v", err)
+	}
+	if len(got) != 2 || got[0] != "alpha" || got[1] != "alpine" {
+		t.Fatalf("unexpected MATCH results: %v", got)
 	}
 }
 
