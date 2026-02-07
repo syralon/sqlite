@@ -757,7 +757,7 @@ func (m *overflowIdxModule) Connect(ctx vtab.Context, args []string) (vtab.Table
 }
 func (t *overflowIdxTable) BestIndex(info *vtab.IndexInfo) error {
 	// Force IdxNum to exceed int32 to trigger trampoline guard.
-	info.IdxNum = math.MaxInt32 + 1
+	info.IdxNum = int64(math.MaxInt32) + 1
 	return nil
 }
 func (t *overflowIdxTable) Open() (vtab.Cursor, error) { return &overflowIdxCursor{}, nil }
