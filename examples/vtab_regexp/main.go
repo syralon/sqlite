@@ -7,9 +7,9 @@ import (
 	"log"
 	"regexp"
 
-	_ "modernc.org/sqlite"
-	sqlite "modernc.org/sqlite"
-	"modernc.org/sqlite/vtab"
+	_ "github.com/syralon/sqlite"
+	sqlite "github.com/syralon/sqlite"
+	"github.com/syralon/sqlite/vtab"
 )
 
 // Register a minimal REGEXP(pattern, value) UDF so SQLite can evaluate

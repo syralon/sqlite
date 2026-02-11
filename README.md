@@ -7,7 +7,7 @@
 | **GitLab** | **Primary Source** | This is the canonical repository (`cznic/sqlite`). CI pipelines and main development happen here. |
 | **GitHub** | **Mirror** | This is a mirror (`modernc-org/sqlite`). We **do accept** Issues and Pull Requests here for your convenience! <br> *Note: PRs submitted here will be manually merged into the GitLab source, so please allow extra time for processing.* |
 
-[![Go Reference](https://pkg.go.dev/badge/modernc.org/sqlite.svg)](https://pkg.go.dev/modernc.org/sqlite)
+[![Go Reference](https://pkg.go.dev/badge/github.com/syralon/sqlite.svg)](https://pkg.go.dev/github.com/syralon/sqlite)
 [![LiberaPay](https://liberapay.com/assets/widgets/donate.svg)](https://liberapay.com/jnml/donate)
 [![receives](https://img.shields.io/liberapay/receives/jnml.svg?logo=liberapay)](https://liberapay.com/jnml/donate)
 [![patrons](https://img.shields.io/liberapay/patrons/jnml.svg?logo=liberapay)](https://liberapay.com/jnml/donate)
@@ -29,14 +29,14 @@
 
 ![benchmarks](bench.png "benchmarks") [The SQLite Drivers Benchmarks Game]
 
-[The SQLite Drivers Benchmarks Game]: https://pkg.go.dev/modernc.org/sqlite-bench#readme-tl-dr-scorecard
+[The SQLite Drivers Benchmarks Game]: https://pkg.go.dev/github.com/syralon/sqlite-bench#readme-tl-dr-scorecard
 
 ---
 
 Virtual Tables (vtab)
 ---------------------
 
-The driver exposes a Go API to implement SQLite virtual table modules in pure Go via the `modernc.org/sqlite/vtab` package. This lets you back SQL tables with arbitrary data sources (e.g., vector indexes, CSV files, remote APIs) and integrate with SQLite’s planner.
+The driver exposes a Go API to implement SQLite virtual table modules in pure Go via the `github.com/syralon/sqlite/vtab` package. This lets you back SQL tables with arbitrary data sources (e.g., vector indexes, CSV files, remote APIs) and integrate with SQLite’s planner.
 
 - Register: `vtab.RegisterModule(db, name, module)`. Registration applies to new connections only.
 - Schema declaration: Call `ctx.Declare("CREATE TABLE <name>(<cols...>)")` within `Create` or `Connect`. The driver does not auto-declare schemas, enabling dynamic schemas.

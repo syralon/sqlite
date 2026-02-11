@@ -1,4 +1,4 @@
-module modernc.org/sqlite
+module github.com/syralon/sqlite
 
 go 1.24.0
 

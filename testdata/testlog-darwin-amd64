@@ -8804,8 +8804,8 @@ Number of malloc()  : -1 calls
 --- FAIL: TestTclTest (3288.51s)
 FAIL
 exit status 1
-FAIL	modernc.org/sqlite	3366.558s
+FAIL	github.com/syralon/sqlite	3366.558s
 8804:--- FAIL: TestTclTest (3288.51s)
 8805:FAIL
-8807:FAIL	modernc.org/sqlite	3366.558s
+8807:FAIL	github.com/syralon/sqlite	3366.558s
 Mon Jan  4 20:27:10 CET 2021

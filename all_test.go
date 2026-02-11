@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package sqlite // import "modernc.org/sqlite"
+package sqlite // import "github.com/syralon/sqlite"
 
 import (
 	"bytes"
@@ -30,11 +30,11 @@ import (
 	"time"
 
 	"github.com/google/pprof/profile"
+	sqlite3 "github.com/syralon/sqlite/lib"
+	"github.com/syralon/sqlite/vfs"
 	util "modernc.org/fileutil/ccgo"
 	"modernc.org/libc"
 	"modernc.org/mathutil"
-	sqlite3 "modernc.org/sqlite/lib"
-	"modernc.org/sqlite/vfs"
 )
 
 var (

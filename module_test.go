@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"modernc.org/sqlite/vtab"
+	"github.com/syralon/sqlite/vtab"
 )
 
 // dummyModule is a minimal vtab.Module implementation used to verify that the
@@ -346,7 +346,7 @@ func (c *matchCursorX) Close() error {
 }
 
 // TestDummyModuleVtab verifies that a simple vtab module implemented in Go
-// can be registered and queried through the modernc.org/sqlite driver.
+// can be registered and queried through the github.com/syralon/sqlite driver.
 func TestDummyModuleVtab(t *testing.T) {
 	// Open an in-memory database using this driver.
 	db, err := sql.Open(driverName, ":memory:")

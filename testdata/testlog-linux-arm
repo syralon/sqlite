@@ -1309,5 +1309,5 @@ Current memory usage: 0 bytes
 Number of malloc()  : -1 calls
 --- PASS: TestTclTest (10507.82s)
 PASS
-ok  	modernc.org/sqlite	10623.858s
+ok  	github.com/syralon/sqlite	10623.858s
 Sun Sep 13 00:32:59 UTC 2020

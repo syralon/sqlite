@@ -10,8 +10,8 @@ package vfs
 import (
 	"unsafe"
 
+	sqlite3 "github.com/syralon/sqlite/lib"
 	"modernc.org/libc"
-	sqlite3 "modernc.org/sqlite/lib"
 )
 
 func init() {

@@ -1,4 +1,4 @@
-module modernc.org/sqlite/vendor_libsqlite3
+module github.com/syralon/sqlite/vendor_libsqlite3
 
 go 1.23.0
 

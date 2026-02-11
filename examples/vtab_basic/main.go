@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"log"
 
-	_ "modernc.org/sqlite"
-	"modernc.org/sqlite/vtab"
+	_ "github.com/syralon/sqlite"
+	"github.com/syralon/sqlite/vtab"
 )
 
 // echoModule implements a tiny read-only vtab with a single TEXT column `val`.

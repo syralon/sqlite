@@ -4,7 +4,7 @@
 
 //go:generate go run generator.go -full-path-comments
 
-package sqlite // import "modernc.org/sqlite"
+package sqlite // import "github.com/syralon/sqlite"
 
 import (
 	"context"
@@ -23,9 +23,9 @@ import (
 	"time"
 	"unsafe"
 
+	sqlite3 "github.com/syralon/sqlite/lib"
 	"modernc.org/libc"
 	"modernc.org/libc/sys/types"
-	sqlite3 "modernc.org/sqlite/lib"
 )
 
 var (
@@ -48,13 +48,13 @@ var (
 )
 
 const (
-	driverName              = "sqlite"
+	driverName              = "sqlite3"
 	ptrSize                 = unsafe.Sizeof(uintptr(0))
 	sqliteLockedSharedcache = sqlite3.SQLITE_LOCKED | (1 << 8)
 )
 
 func init() {
-	sql.Register(driverName, newDriver())
+	sql.Register(driverName, NewDriver())
 	sqlite3.PatchIssue199() // https://gitlab.com/cznic/sqlite/-/issues/199
 
 }

@@ -6,8 +6,8 @@ import (
 	"log"
 	"strings"
 
-	_ "modernc.org/sqlite"
-	"modernc.org/sqlite/vtab"
+	_ "github.com/syralon/sqlite"
+	"github.com/syralon/sqlite/vtab"
 )
 
 // matchModule demonstrates MATCH pushdown. It exposes a single TEXT column `val`.

@@ -1,5 +1,5 @@
 // Package vtab defines a Go-facing API for implementing SQLite virtual table
-// modules on top of the modernc.org/sqlite driver.
+// modules on top of the github.com/syralon/sqlite driver.
 //
 // It is intentionally small and generic so that external projects can
 // implement virtual tables without depending on the translated C internals.

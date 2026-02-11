@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package sqlite // import "modernc.org/sqlite"
+package sqlite // import "github.com/syralon/sqlite"
 
 import (
 	"database/sql/driver"
 	"fmt"
 
-	"modernc.org/sqlite/vtab"
+	"github.com/syralon/sqlite/vtab"
 )
 
 // Driver implements database/sql/driver.Driver.
@@ -31,7 +31,7 @@ var d = &Driver{
 	modules:         make(map[string]vtab.Module, 0),
 }
 
-func newDriver() *Driver { return d }
+func NewDriver() *Driver { return d }
 
 // Open returns a new connection to the database. The name is a string in a
 // driver-specific format.

@@ -6,9 +6,9 @@ import (
 	"sync"
 	"unsafe"
 
+	sqlite3 "github.com/syralon/sqlite/lib"
 	"modernc.org/libc"
 	"modernc.org/libc/sys/types"
-	sqlite3 "modernc.org/sqlite/lib"
 )
 
 var (

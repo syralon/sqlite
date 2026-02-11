@@ -9,9 +9,9 @@ import (
 	"time"
 	"unsafe"
 
+	libsqlite3 "github.com/syralon/sqlite/lib"
 	"modernc.org/libc"
 	"modernc.org/libc/sys/types"
-	libsqlite3 "modernc.org/sqlite/lib"
 )
 
 var (

@@ -1,7 +1,7 @@
 # Changelog
 
  - 2026-02-09  v1.45.0:
-  - Introduce vtab subpackage (modernc.org/sqlite/vtab) exposing Module, Table, Cursor, and IndexInfo API for Go virtual tables.
+  - Introduce vtab subpackage (github.com/syralon/sqlite/vtab) exposing Module, Table, Cursor, and IndexInfo API for Go virtual tables.
   - Wire vtab registration into the driver: vtab.RegisterModule installs modules globally and each new connection calls sqlite3_create_module_v2.
   - Implement vtab trampolines for xCreate/xConnect/xBestIndex/xDisconnect/xDestroy/xOpen/xClose/xFilter/xNext/xEof/xColumn/xRowid.
   - Map SQLite’s sqlite3_index_info into vtab.IndexInfo, including constraints, ORDER BY terms, and constraint usage (ArgIndex → xFilter argv[]).
@@ -51,7 +51,7 @@
  - 2022-09-16 v1.19.0: Support frebsd/arm64.
 
  - 2022-07-26 v1.18.0: Add support for Go fs.FS based SQLite virtual
-   filesystems, see function New in modernc.org/sqlite/vfs and/or TestVFS in
+   filesystems, see function New in github.com/syralon/sqlite/vfs and/or TestVFS in
    all_test.go
 
  - 2022-04-24 v1.17.0: Support windows/arm64.

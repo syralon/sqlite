@@ -5,8 +5,8 @@ import (
 	"slices"
 	"testing"
 
-	"modernc.org/sqlite"
-	sqlite3 "modernc.org/sqlite/lib"
+	"github.com/syralon/sqlite"
+	sqlite3 "github.com/syralon/sqlite/lib"
 )
 
 func TestPreUpdateHook(t *testing.T) {
